@@ -20,7 +20,13 @@ class Lexer private constructor(
 
         val character: Char = currentInput[0]
         val token = when (character) {
-            '=' -> Token.Companion.Assign
+            '=' -> {
+                if (getOptionalNextCharacter(currentInput) == '=') {
+                    Token.Companion.Equal
+                } else {
+                    Token.Companion.Assign
+                }
+            }
             ';' -> Token.Companion.Semicolon
             '(' -> Token.Companion.LeftParen
             ')' -> Token.Companion.RightParen
@@ -28,6 +34,18 @@ class Lexer private constructor(
             '+' -> Token.Companion.Plus
             '{' -> Token.Companion.LeftBrace
             '}' -> Token.Companion.RightBrace
+            '-' -> Token.Companion.Minus
+            '!' -> {
+                if (getOptionalNextCharacter(currentInput) == '=') {
+                    Token.Companion.NotEqual
+                } else {
+                    Token.Companion.Bang
+                }
+            }
+            '/' -> Token.Companion.Slash
+            '*' -> Token.Companion.Asterisk
+            '<' -> Token.Companion.LessThan
+            '>' -> Token.Companion.GreaterTHan
             else -> {
                 if(couldBeIdentifier(character)) {
                     readKeywordOrIdentifier(currentInput)
@@ -42,13 +60,27 @@ class Lexer private constructor(
             is Token.Companion.Identifier -> token.value.length
             is Token.Companion.Illegal -> 0
             is Token.Companion.IntValue -> token.value.toString().length
+            Token.Companion.NotEqual -> 2
             Token.Companion.Let -> 3
             Token.Companion.Function -> 2
+            Token.Companion.Return -> 6
+            Token.Companion.If -> 2
+            Token.Companion.Else -> 4
+            Token.Companion.True -> 4
+            Token.Companion.False -> 5
+            Token.Companion.Equal -> 2
             else -> 1
         }
         return Pair(token, advancePosition(advanceBy))
     }
 
+    private fun getOptionalNextCharacter(currentInput: String): Char? {
+        return if (currentInput.length > 1) {
+            currentInput[1]
+        } else {
+            null
+        }
+    }
     private fun advancePosition(advanceBy: Int): Lexer {
         return Lexer(input, position + advanceBy)
     }
@@ -68,7 +100,12 @@ class Lexer private constructor(
     companion object {
         private val keywords = mapOf(
             "fn" to Token.Companion.Function,
-            "let" to Token.Companion.Let
+            "let" to Token.Companion.Let,
+            "return" to Token.Companion.Return,
+            "if" to Token.Companion.If,
+            "else" to Token.Companion.Else,
+            "true" to Token.Companion.True,
+            "false" to Token.Companion.False,
         )
         fun fromString(string: String): Lexer? {
             return if (string.isEmpty()) null

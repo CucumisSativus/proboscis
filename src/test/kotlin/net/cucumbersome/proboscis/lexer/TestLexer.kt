@@ -85,6 +85,66 @@ class TestLexer {
             Token.Companion.Eof
         )
         runLexerTest(input, expectedTokens)
-
     }
+
+    @Test
+    fun getNextTokenSpecialCharactersAndThings() {
+        val input = """
+            !-/*5;
+            5 < 10 > 5;
+
+            if (5 < 10) {
+                return true;
+            } else {
+                return false;
+            }
+
+            10 == 10;
+            10 != 9;
+        """.trimIndent()
+
+        val expectedTokens = listOf(
+            Token.Companion.Bang,
+            Token.Companion.Minus,
+            Token.Companion.Slash,
+            Token.Companion.Asterisk,
+            Token.Companion.IntValue(5),
+            Token.Companion.Semicolon,
+            Token.Companion.IntValue(5),
+            Token.Companion.LessThan,
+            Token.Companion.IntValue(10),
+            Token.Companion.GreaterTHan,
+            Token.Companion.IntValue(5),
+            Token.Companion.Semicolon,
+            Token.Companion.If,
+            Token.Companion.LeftParen,
+            Token.Companion.IntValue(5),
+            Token.Companion.LessThan,
+            Token.Companion.IntValue(10),
+            Token.Companion.RightParen,
+            Token.Companion.LeftBrace,
+            Token.Companion.Return,
+            Token.Companion.True,
+            Token.Companion.Semicolon,
+            Token.Companion.RightBrace,
+            Token.Companion.Else,
+            Token.Companion.LeftBrace,
+            Token.Companion.Return,
+            Token.Companion.False,
+            Token.Companion.Semicolon,
+            Token.Companion.RightBrace,
+            Token.Companion.IntValue(10),
+            Token.Companion.Equal,
+            Token.Companion.IntValue(10),
+            Token.Companion.Semicolon,
+            Token.Companion.IntValue(10),
+            Token.Companion.NotEqual,
+            Token.Companion.IntValue(9),
+            Token.Companion.Semicolon,
+            Token.Companion.Eof
+        )
+        runLexerTest(input, expectedTokens)
+    }
+
+
 }

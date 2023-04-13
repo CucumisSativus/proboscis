@@ -20,6 +20,24 @@ sealed class Token {
 
         object Function: Token()
         object Let: Token()
+        object Bang: Token()
+        object Minus: Token()
+
+        object Slash:  Token()
+        object Asterisk: Token()
+        object LessThan: Token()
+
+        object GreaterTHan: Token()
+
+        object Return: Token()
+
+        object If: Token()
+        object Else: Token()
+        object True: Token()
+        object False: Token()
+
+        object Equal: Token()
+        object NotEqual: Token()
     }
 }
 
