@@ -4,51 +4,51 @@ import net.cucumbersome.proboscis.Token
 import net.cucumbersome.proboscis.lexer.Lexer
 
 class Parser(val lexer: Lexer) {
-    fun parseProgram(): Program {
-        tailrec fun parseProgram(currentLexer: Lexer, statements: List<Statement>): List<Statement> {
-            val (token, newLexer) = currentLexer.nextToken()
-            return when (token) {
-                Token.Companion.Eof -> statements
-                Token.Companion.Let -> {
-                    val (statement, usedLexer) = parseLetStatement(newLexer)
-                    parseProgram(usedLexer, statements + statement)
-                }
-                else -> throw AssertionError("Unexpected token $token")
-            }
+  fun parseProgram(): Program {
+    tailrec fun parseProgram(currentLexer: Lexer, statements: List<Statement>): List<Statement> {
+      val (token, newLexer) = currentLexer.nextToken()
+      return when (token) {
+        Token.Companion.Eof -> statements
+        Token.Companion.Let -> {
+          val (statement, usedLexer) = parseLetStatement(newLexer)
+          parseProgram(usedLexer, statements + statement)
         }
-        return Program(parseProgram(lexer, emptyList()))
+        else -> throw AssertionError("Unexpected token $token")
+      }
     }
-    private fun parseLetStatement(lexer: Lexer): Pair<LetStatement, Lexer> {
-        val (identifierToken, newLexer) = lexer.nextToken()
-        if (identifierToken !is Token.Companion.Identifier) {
-            throw AssertionError("Expected identifier, got $identifierToken")
-        }
-
-        val (equalToken, newLexer2) = newLexer.nextToken()
-        if (equalToken != Token.Companion.Assign) {
-            throw AssertionError("Expected =, got $equalToken")
-        }
-
-        val (expression, newLexer3) = parseExpression(newLexer2)
-        val (semicolonToken, newLexer4) = newLexer3.nextToken()
-        if(semicolonToken != Token.Companion.Semicolon) {
-            throw AssertionError("Expected ;, got $semicolonToken")
-        }
-        return Pair(
-            LetStatement(
-                Identifier(identifierToken.value, identifierToken),
-                expression,
-                Token.Companion.Let
-            ),
-            newLexer4
-        )
+    return Program(parseProgram(lexer, emptyList()))
+  }
+  private fun parseLetStatement(lexer: Lexer): Pair<LetStatement, Lexer> {
+    val (identifierToken, newLexer) = lexer.nextToken()
+    if (identifierToken !is Token.Companion.Identifier) {
+      throw AssertionError("Expected identifier, got $identifierToken")
     }
 
-    private fun parseExpression(lexer: Lexer): Pair<Expression, Lexer> {
-        val (token, newLexer) = lexer.nextToken()
-        return when (token) {
-            is Token.Companion.IntValue -> Pair(IntegerLiteral(token.value, token), newLexer)
-            else -> throw AssertionError("Unexpected token $token")
-        }
+    val (equalToken, newLexer2) = newLexer.nextToken()
+    if (equalToken != Token.Companion.Assign) {
+      throw AssertionError("Expected =, got $equalToken")
     }
+
+    val (expression, newLexer3) = parseExpression(newLexer2)
+    val (semicolonToken, newLexer4) = newLexer3.nextToken()
+    if (semicolonToken != Token.Companion.Semicolon) {
+      throw AssertionError("Expected ;, got $semicolonToken")
+    }
+    return Pair(
+      LetStatement(
+        Identifier(identifierToken.value, identifierToken),
+        expression,
+        Token.Companion.Let
+      ),
+      newLexer4
+    )
+  }
+
+  private fun parseExpression(lexer: Lexer): Pair<Expression, Lexer> {
+    val (token, newLexer) = lexer.nextToken()
+    return when (token) {
+      is Token.Companion.IntValue -> Pair(IntegerLiteral(token.value, token), newLexer)
+      else -> throw AssertionError("Unexpected token $token")
+    }
+  }
 }
