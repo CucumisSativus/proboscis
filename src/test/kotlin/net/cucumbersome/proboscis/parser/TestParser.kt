@@ -16,9 +16,9 @@ class TestParser {
     val program = parser.parseProgram()
     assertEquals(3, program.statements.size)
     val tests = listOf(
-      "x" to 5,
-      "y" to 10,
-      "foobar" to 838383
+      "x" to Pair(5, 7),
+      "y" to Pair(10, 18),
+      "foobar" to Pair(838383, 35)
     )
     tests.forEachIndexed { index, (expectedIdentifier, expectedValue) ->
       val statement = program.statements[index]
@@ -30,7 +30,8 @@ class TestParser {
       if (statement.value !is IntegerLiteral) {
         throw AssertionError("Value of statement at index $index is not an IntegerLiteral")
       }
-      assertEquals(expectedValue, (statement.value as IntegerLiteral).value)
+      assertEquals(expectedValue.first, (statement.value as IntegerLiteral).value)
+      assertEquals(expectedValue.second, statement.value.tokenPosition.position)
     }
   }
 }

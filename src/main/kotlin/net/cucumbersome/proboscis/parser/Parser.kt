@@ -21,7 +21,7 @@ class Parser(val lexer: Lexer) {
   private fun parseLetStatement(lexer: Lexer): Pair<LetStatement, Lexer> {
     val (identifierToken, newLexer) = lexer.nextToken()
     if (identifierToken !is Token.Companion.Identifier) {
-      throw AssertionError("Expected identifier, got $identifierToken")
+      throw AssertionError("Expected identifier, got $identifierToken at position ${lexer.position}")
     }
 
     val (equalToken, newLexer2) = newLexer.nextToken()
@@ -32,13 +32,14 @@ class Parser(val lexer: Lexer) {
     val (expression, newLexer3) = parseExpression(newLexer2)
     val (semicolonToken, newLexer4) = newLexer3.nextToken()
     if (semicolonToken != Token.Companion.Semicolon) {
-      throw AssertionError("Expected ;, got $semicolonToken")
+      throw AssertionError("Expected ;, got $semicolonToken at position ${newLexer3.position}")
     }
     return Pair(
       LetStatement(
-        Identifier(identifierToken.value, identifierToken),
+        Identifier(identifierToken.value, identifierToken, TokenPosition(lexer)),
         expression,
-        Token.Companion.Let
+        Token.Companion.Let,
+        TokenPosition(lexer)
       ),
       newLexer4
     )
@@ -47,7 +48,7 @@ class Parser(val lexer: Lexer) {
   private fun parseExpression(lexer: Lexer): Pair<Expression, Lexer> {
     val (token, newLexer) = lexer.nextToken()
     return when (token) {
-      is Token.Companion.IntValue -> Pair(IntegerLiteral(token.value, token), newLexer)
+      is Token.Companion.IntValue -> Pair(IntegerLiteral(token.value, token, TokenPosition(lexer)), newLexer)
       else -> throw AssertionError("Unexpected token $token")
     }
   }

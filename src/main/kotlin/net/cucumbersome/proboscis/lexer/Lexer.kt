@@ -3,8 +3,8 @@ package net.cucumbersome.proboscis.lexer
 import net.cucumbersome.proboscis.Token
 
 class Lexer private constructor(
-  private val input: String,
-  private val position: Int
+  val input: String,
+  val position: Int
 ) {
 
   fun nextToken(): Pair<Token, Lexer> {
@@ -27,6 +27,7 @@ class Lexer private constructor(
           Token.Companion.Assign
         }
       }
+
       ';' -> Token.Companion.Semicolon
       '(' -> Token.Companion.LeftParen
       ')' -> Token.Companion.RightParen
@@ -42,6 +43,7 @@ class Lexer private constructor(
           Token.Companion.Bang
         }
       }
+
       '/' -> Token.Companion.Slash
       '*' -> Token.Companion.Asterisk
       '<' -> Token.Companion.LessThan
@@ -81,6 +83,7 @@ class Lexer private constructor(
       null
     }
   }
+
   private fun advancePosition(advanceBy: Int): Lexer {
     return Lexer(input, position + advanceBy)
   }
@@ -94,9 +97,11 @@ class Lexer private constructor(
     val keyword = currentInput.takeWhile { couldBeIdentifier(it) }
     return keywords[keyword] ?: Token.Companion.Identifier(keyword)
   }
+
   fun couldBeIdentifier(char: Char): Boolean {
     return char.isLetter() || char == '_'
   }
+
   companion object {
     private val keywords = mapOf(
       "fn" to Token.Companion.Function,
@@ -107,6 +112,7 @@ class Lexer private constructor(
       "true" to Token.Companion.True,
       "false" to Token.Companion.False
     )
+
     fun fromString(string: String): Lexer? {
       return if (string.isEmpty()) {
         null
