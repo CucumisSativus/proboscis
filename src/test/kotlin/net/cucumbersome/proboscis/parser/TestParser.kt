@@ -14,6 +14,7 @@ class TestParser {
     val lexer = Lexer.fromString(input)!!
     val parser = Parser(lexer)
     val program = parser.parseProgram()
+
     assertEquals(3, program.statements.size)
     val tests = listOf(
       "x" to Pair(5, 7),
