@@ -3,8 +3,8 @@ package net.cucumbersome.proboscis.parser
 import net.cucumbersome.proboscis.Token
 import net.cucumbersome.proboscis.lexer.Lexer
 
-data class TokenPosition(val position: Int) {
-  constructor(lexer: Lexer) : this(lexer.position)
+data class TokenPosition(val position: Int, val line: Int, val column: Int) {
+  constructor(lexer: Lexer) : this(lexer.position, lexer.line, lexer.column)
 }
 sealed interface Node {
   val token: Token

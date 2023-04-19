@@ -3,40 +3,136 @@ package net.cucumbersome.proboscis
 sealed class Token {
   companion object {
     data class Illegal(val value: Char) : Token()
-    object Eof : Token()
+    object Eof : Token() {
+      override fun toString(): String {
+        return "EOF"
+      }
+    }
     data class Identifier(val value: String) : Token()
     data class IntValue(val value: Int) : Token()
 
-    object Assign : Token()
+    object Assign : Token() {
+      override fun toString(): String {
+        return "="
+      }
+    }
 
-    object Plus : Token()
-    object Comma : Token()
-    object Semicolon : Token()
+    object Plus : Token() {
+      override fun toString(): String {
+        return "+"
+      }
+    }
+    object Comma : Token() {
+      override fun toString(): String {
+        return ","
+      }
+    }
+    object Semicolon : Token() {
+      override fun toString(): String {
+        return ";"
+      }
+    }
 
-    object LeftParen : Token()
-    object RightParen : Token()
-    object LeftBrace : Token()
-    object RightBrace : Token()
+    object LeftParen : Token() {
+      override fun toString(): String {
+        return "("
+      }
+    }
+    object RightParen : Token() {
+      override fun toString(): String {
+        return ")"
+      }
+    }
+    object LeftBrace : Token() {
+      override fun toString(): String {
+        return "{"
+      }
+    }
+    object RightBrace : Token() {
+      override fun toString(): String {
+        return "}"
+      }
+    }
 
-    object Function : Token()
-    object Let : Token()
-    object Bang : Token()
-    object Minus : Token()
+    object Function : Token() {
+      override fun toString(): String {
+        return "fn"
+      }
+    }
+    object Let : Token() {
+      override fun toString(): String {
+        return "let"
+      }
+    }
+    object Bang : Token() {
+      override fun toString(): String {
+        return "!"
+      }
+    }
+    object Minus : Token() {
+      override fun toString(): String {
+        return "-"
+      }
+    }
 
-    object Slash : Token()
-    object Asterisk : Token()
-    object LessThan : Token()
+    object Slash : Token() {
+      override fun toString(): String {
+        return "/"
+      }
+    }
+    object Asterisk : Token() {
+      override fun toString(): String {
+        return "*"
+      }
+    }
+    object LessThan : Token() {
+      override fun toString(): String {
+        return "<"
+      }
+    }
 
-    object GreaterTHan : Token()
+    object GreaterTHan : Token() {
+      override fun toString(): String {
+        return ">"
+      }
+    }
 
-    object Return : Token()
+    object Return : Token() {
+      override fun toString(): String {
+        return "return"
+      }
+    }
 
-    object If : Token()
-    object Else : Token()
-    object True : Token()
-    object False : Token()
+    object If : Token() {
+      override fun toString(): String {
+        return "if"
+      }
+    }
+    object Else : Token() {
+      override fun toString(): String {
+        return "else"
+      }
+    }
+    object True : Token() {
+      override fun toString(): String {
+        return "true"
+      }
+    }
+    object False : Token() {
+      override fun toString(): String {
+        return "false"
+      }
+    }
 
-    object Equal : Token()
-    object NotEqual : Token()
+    object Equal : Token() {
+      override fun toString(): String {
+        return "=="
+      }
+    }
+    object NotEqual : Token() {
+      override fun toString(): String {
+        return "!="
+      }
+    }
   }
 }
