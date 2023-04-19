@@ -56,15 +56,15 @@ class TestParser {
       { it.errors },
       { throw AssertionError("Expected parsing to fail, but it succeeded") }
     )
-    val expectedErrors = listOf(
-      "Expected =, got IntValue(value=5)" to TokenPosition(position = 7),
-      "Unexpected token ;" to TokenPosition(position = 7),
-      "Expected identifier, got =" to TokenPosition(position = 12),
-      "Expected =, got IntValue(value=10)" to TokenPosition(position = 17),
-      "Unexpected token ;" to TokenPosition(position = 17),
-      "Expected identifier, got IntValue(value=838383)" to TokenPosition(position = 22),
-      "Expected =, got ;" to TokenPosition(position = 30),
-      "Unexpected token EOF" to TokenPosition(position = 30)
+    val expectedErrors: List<Pair<String, TokenPosition>> = listOf(
+      "Expected =, got IntValue(value=5)" to TokenPosition(position = 7, line = 1, column = 7),
+      "Unexpected token ;" to TokenPosition(position = 7, line = 1, column = 7),
+      "Expected identifier, got =" to TokenPosition(position = 12, line = 2, column = 4),
+      "Expected =, got IntValue(value=10)" to TokenPosition(position = 17, line = 2, column = 9),
+      "Unexpected token ;" to TokenPosition(position = 17, line = 2, column = 9),
+      "Expected identifier, got IntValue(value=838383)" to TokenPosition(position = 22, line = 3, column = 4),
+      "Expected =, got ;" to TokenPosition(position = 30, line = 3, column = 12),
+      "Unexpected token EOF" to TokenPosition(position = 30, line = 3, column = 12)
     )
     assertEquals(expectedErrors.size, errors.size)
     expectedErrors.forEachIndexed { index, (expectedMessage, expectedPosition) ->

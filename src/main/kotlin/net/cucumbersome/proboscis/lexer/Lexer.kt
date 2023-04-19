@@ -4,7 +4,9 @@ import net.cucumbersome.proboscis.Token
 
 class Lexer private constructor(
   val input: String,
-  val position: Int
+  val position: Int,
+  val line: Int,
+  val column: Int
 ) {
 
   fun nextToken(): Pair<Token, Lexer> {
@@ -85,7 +87,15 @@ class Lexer private constructor(
   }
 
   private fun advancePosition(advanceBy: Int): Lexer {
-    return Lexer(input, position + advanceBy)
+    val newPosition = position + advanceBy
+    val currentSlice = input.substring(position, newPosition)
+    val newLineCount = currentSlice.count { it == '\n' }
+    val newColumn = if (newLineCount > 0) {
+      currentSlice.length - currentSlice.lastIndexOf('\n')
+    } else {
+      column + advanceBy
+    }
+    return Lexer(input, newPosition, line + newLineCount, newColumn)
   }
 
   private fun readNumber(currentInput: String): Token {
@@ -119,6 +129,8 @@ class Lexer private constructor(
       } else {
         Lexer(
           string,
+          0,
+          1,
           0
         )
       }
