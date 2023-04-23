@@ -6,6 +6,7 @@ import net.cucumbersome.proboscis.lexer.Lexer
 data class TokenPosition(val position: Int, val line: Int, val column: Int) {
   constructor(lexer: Lexer) : this(lexer.position, lexer.line, lexer.column)
 }
+
 sealed interface Node {
   val token: Token
   val tokenPosition: TokenPosition
@@ -22,6 +23,12 @@ sealed interface Statement : Node
 class LetStatement(
   val name: Identifier,
   val value: Expression,
+  override val token: Token,
+  override val tokenPosition: TokenPosition
+) : Statement
+
+class ReturnStatement(
+  val returnValue: Expression,
   override val token: Token,
   override val tokenPosition: TokenPosition
 ) : Statement
