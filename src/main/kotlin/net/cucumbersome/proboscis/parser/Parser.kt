@@ -4,7 +4,9 @@ import arrow.core.Either
 import net.cucumbersome.proboscis.Token
 import net.cucumbersome.proboscis.lexer.Lexer
 
-data class ParserError(val message: String, val position: TokenPosition)
+data class ParserError(val message: String, val position: TokenPosition) {
+  override fun toString(): String = "$message at line ${position.line}, column ${position.column}"
+}
 
 sealed interface ParseStatementResult<T : Statement> {
   val lexer: Lexer
@@ -32,7 +34,7 @@ class Parser(val lexer: Lexer) {
   fun parseProgram(): Either<ProgramParseError, Program> {
     tailrec fun parseProgram(
       currentLexer: Lexer,
-      statements: List<Statement>,
+      statements: List<Node>,
       errors: List<ParserError>
     ): Either<ProgramParseError, Program> {
       val (token, newLexer) = currentLexer.nextToken()
@@ -69,11 +71,18 @@ class Parser(val lexer: Lexer) {
           }
         }
 
-        else -> parseProgram(
-          newLexer,
-          statements,
-          errors + ParserError("Unexpected token $token", TokenPosition(newLexer))
-        )
+        else -> {
+          val parseResult = parseExpressionStatement(currentLexer)
+          when (parseResult) {
+            is SuccessfulParseExpressionResult -> parseProgram(
+              parseResult.lexer,
+              statements + parseResult.expression,
+              errors
+            )
+
+            is FailedParseExpressionResult -> parseProgram(parseResult.lexer, statements, errors + parseResult.errors)
+          }
+        }
       }
     }
     return parseProgram(lexer, emptyList(), emptyList())
@@ -81,22 +90,15 @@ class Parser(val lexer: Lexer) {
 
   private fun parseReturnStatement(lexer: Lexer): ParseStatementResult<out ReturnStatement> {
     val errors = mutableListOf<ParserError>()
-    val parseExpressionResult = parseExpression(lexer)
+    val parseExpressionResult = parseExpressionStatement(lexer)
     if (parseExpressionResult is FailedParseExpressionResult) {
       errors.addAll(parseExpressionResult.errors)
       return FailedParseStatementResult(errors, parseExpressionResult.lexer)
     }
     val (expression, newLexer) = parseExpressionResult as SuccessfulParseExpressionResult<out Expression>
-    val (semicolonToken, newLexer2) = newLexer.nextToken()
-    if (semicolonToken != Token.Companion.Semicolon) {
-      errors.add(ParserError("Expected ;, got $semicolonToken", TokenPosition(newLexer2)))
-    }
-    if (errors.isNotEmpty()) {
-      return FailedParseStatementResult(errors, newLexer2)
-    }
     return SuccessfulParseStatementResult(
       ReturnStatement(expression, Token.Companion.Return, TokenPosition(lexer)),
-      newLexer2
+      newLexer
     )
   }
 
@@ -112,18 +114,15 @@ class Parser(val lexer: Lexer) {
       errors.add(ParserError("Expected =, got $equalToken", TokenPosition(newLexer2)))
     }
 
-    val parseExpressionResult = parseExpression(newLexer2)
+    val parseExpressionResult = parseExpressionStatement(newLexer2)
     if (parseExpressionResult is FailedParseExpressionResult) {
       errors.addAll(parseExpressionResult.errors)
       return FailedParseStatementResult(errors, parseExpressionResult.lexer)
     }
     val (expression, newLexer3) = parseExpressionResult as SuccessfulParseExpressionResult<out Expression>
-    val (semicolonToken, newLexer4) = newLexer3.nextToken()
-    if (semicolonToken != Token.Companion.Semicolon) {
-      errors.add(ParserError("Expected ;, got $semicolonToken", TokenPosition(newLexer3)))
-    }
+
     return if (errors.isNotEmpty() || identifierToken !is Token.Companion.Identifier) {
-      FailedParseStatementResult(errors, newLexer4)
+      FailedParseStatementResult(errors, newLexer3)
     } else {
       SuccessfulParseStatementResult(
         LetStatement(
@@ -132,14 +131,32 @@ class Parser(val lexer: Lexer) {
           Token.Companion.Let,
           TokenPosition(lexer)
         ),
-        newLexer4
+        newLexer3
       )
     }
   }
 
-  private fun parseExpression(lexer: Lexer): ParseExpressionResult<out Expression> {
+  private fun parseExpressionStatement(lexer: Lexer): ParseExpressionResult<out Expression> {
+    val parseExpressionResult = parseExpression(lexer, Precedence.Lowest)
+    if (parseExpressionResult is FailedParseExpressionResult) {
+      return parseExpressionResult
+    }
+    val (expression, newLexer) = parseExpressionResult as SuccessfulParseExpressionResult<out Expression>
+    return if (newLexer.nextTokenIs(Token.Companion.Semicolon)) {
+      SuccessfulParseExpressionResult(expression, newLexer.nextToken().second)
+    } else {
+      SuccessfulParseExpressionResult(expression, newLexer)
+    }
+  }
+
+  private fun parseExpression(lexer: Lexer, precedence: Precedence): ParseExpressionResult<out Expression> {
     val (token, newLexer) = lexer.nextToken()
     return when (token) {
+      is Token.Companion.Identifier -> SuccessfulParseExpressionResult(
+        Identifier(token.value, token, TokenPosition(lexer)),
+        newLexer
+      )
+
       is Token.Companion.IntValue -> SuccessfulParseExpressionResult(
         IntegerLiteral(token.value, token, TokenPosition(lexer)),
         newLexer
@@ -149,6 +166,18 @@ class Parser(val lexer: Lexer) {
         listOf(ParserError("Unexpected token $token", TokenPosition(lexer))),
         newLexer
       )
+    }
+  }
+
+  companion object {
+    enum class Precedence(val value: Int) {
+      Lowest(0),
+      Equals(1),
+      LessGreater(2),
+      Sum(3),
+      Product(4),
+      Prefix(5),
+      Call(6)
     }
   }
 }

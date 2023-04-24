@@ -78,6 +78,11 @@ class Lexer private constructor(
     return Pair(token, advancePosition(advanceBy))
   }
 
+  fun nextTokenIs(expectedToken: Token): Boolean {
+    val (token, _) = nextToken()
+    return token == expectedToken
+  }
+
   private fun getOptionalNextCharacter(currentInput: String): Char? {
     return if (currentInput.length > 1) {
       currentInput[1]
@@ -108,7 +113,7 @@ class Lexer private constructor(
     return keywords[keyword] ?: Token.Companion.Identifier(keyword)
   }
 
-  fun couldBeIdentifier(char: Char): Boolean {
+  private fun couldBeIdentifier(char: Char): Boolean {
     return char.isLetter() || char == '_'
   }
 

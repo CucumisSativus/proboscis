@@ -3,6 +3,7 @@ package net.cucumbersome.proboscis.lexer
 import net.cucumbersome.proboscis.Token
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 class TestLexer {
   fun runLexerTest(input: String, expectedTokens: List<Token>) {
@@ -143,5 +144,15 @@ class TestLexer {
       Token.Companion.Eof
     )
     runLexerTest(input, expectedTokens)
+  }
+
+  @Test
+  fun testNextTokenIs() {
+    val input = "let a = 5;"
+    val lexer = Lexer.fromString(input)!!
+
+    assertTrue { lexer.nextTokenIs(Token.Companion.Let) }
+    val (_, newLexer) = lexer.nextToken()
+    assertTrue { newLexer.nextTokenIs(Token.Companion.Identifier("a")) }
   }
 }

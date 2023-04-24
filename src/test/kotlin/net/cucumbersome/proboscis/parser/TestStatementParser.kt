@@ -1,11 +1,12 @@
 package net.cucumbersome.proboscis.parser
 
 import net.cucumbersome.proboscis.Token
-import net.cucumbersome.proboscis.lexer.Lexer
+import net.cucumbersome.proboscis.parser.ParserHelper.getProgram
+import net.cucumbersome.proboscis.parser.ParserHelper.testErrorHandling
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-class TestParser {
+class TestStatementParser {
   @Test
   fun testParsingLetStatements() {
     val input = """
@@ -13,14 +14,8 @@ class TestParser {
             let y = 10;
             let foobar = 838383;
     """.trimIndent()
-    val lexer = Lexer.fromString(input)!!
-    val parser = Parser(lexer)
-    val program = parser.parseProgram()
 
-    val statements = program.fold(
-      { throw AssertionError("Error when parsing input $it") },
-      { it.statements }
-    )
+    val statements = getProgram(input).statements
     assertEquals(3, statements.size)
     val tests = listOf(
       "x" to Pair(5, 7),
@@ -49,13 +44,7 @@ class TestParser {
             let = 10;
             let 838383;
     """.trimIndent()
-    val lexer = Lexer.fromString(input)!!
-    val parser = Parser(lexer)
-    val program = parser.parseProgram()
-    val errors = program.fold(
-      { it.errors },
-      { throw AssertionError("Expected parsing to fail, but it succeeded") }
-    )
+
     val expectedErrors: List<ParserError> = listOf(
       ParserError("Expected =, got IntValue(value=5)", TokenPosition(position = 7, line = 1, column = 7)),
       ParserError("Unexpected token ;", TokenPosition(position = 7, line = 1, column = 7)),
@@ -69,12 +58,8 @@ class TestParser {
       ParserError("Expected =, got ;", TokenPosition(position = 30, line = 3, column = 12)),
       ParserError("Unexpected token EOF", TokenPosition(position = 30, line = 3, column = 12))
     )
-    assertEquals(expectedErrors.size, errors.size)
-    expectedErrors.forEachIndexed { index, (expectedMessage, expectedPosition) ->
-      val error = errors[index]
-      assertEquals(expectedMessage, error.message)
-      assertEquals(expectedPosition, error.position)
-    }
+
+    return testErrorHandling(input, expectedErrors)
   }
 
   @Test
@@ -84,14 +69,9 @@ class TestParser {
             return 10;
             return 838383;
     """.trimIndent()
-    val lexer = Lexer.fromString(input)!!
-    val parser = Parser(lexer)
-    val program = parser.parseProgram()
 
-    val statements = program.fold(
-      { throw AssertionError("Error when parsing input $it") },
-      { it.statements }
-    )
+    val statements = getProgram(input).statements
+
     assertEquals(3, statements.size)
     val tests = listOf(
       5 to 6,
@@ -118,26 +98,14 @@ class TestParser {
       return return;
       return let;
     """.trimIndent()
-    val lexer = Lexer.fromString(input)!!
-    val parser = Parser(lexer)
-    val program = parser.parseProgram()
-    val errors = program.fold(
-      { it.errors },
-      { throw AssertionError("Expected parsing to fail, but it succeeded") }
-    )
 
     val expectedErrors: List<ParserError> = listOf(
       ParserError(message = "Unexpected token return", position = TokenPosition(position = 6, line = 1, column = 6)),
-      ParserError(message = "Unexpected token ;", position = TokenPosition(position = 14, line = 1, column = 14)),
+      ParserError(message = "Unexpected token ;", position = TokenPosition(position = 13, line = 1, column = 13)),
       ParserError(message = "Unexpected token let", position = TokenPosition(position = 21, line = 2, column = 7)),
-      ParserError(message = "Unexpected token ;", position = TokenPosition(position = 26, line = 2, column = 12))
+      ParserError(message = "Unexpected token ;", position = TokenPosition(position = 25, line = 2, column = 11))
     )
-    assertEquals(expectedErrors.size, errors.size)
 
-    expectedErrors.forEachIndexed { index, (expectedMessage, expectedPosition) ->
-      val error = errors[index]
-      assertEquals(expectedMessage, error.message)
-      assertEquals(expectedPosition, error.position)
-    }
+    return testErrorHandling(input, expectedErrors)
   }
 }

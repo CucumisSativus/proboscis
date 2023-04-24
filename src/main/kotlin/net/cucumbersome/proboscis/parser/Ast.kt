@@ -14,9 +14,11 @@ sealed interface Node {
 
 sealed interface Expression : Node
 
-class Identifier(val value: String, override val token: Token, override val tokenPosition: TokenPosition) : Expression
+data class Identifier(val value: String, override val token: Token, override val tokenPosition: TokenPosition) :
+  Expression
 
-class IntegerLiteral(val value: Int, override val token: Token, override val tokenPosition: TokenPosition) : Expression
+data class IntegerLiteral(val value: Int, override val token: Token, override val tokenPosition: TokenPosition) :
+  Expression
 
 sealed interface Statement : Node
 
@@ -33,4 +35,4 @@ class ReturnStatement(
   override val tokenPosition: TokenPosition
 ) : Statement
 
-class Program(val statements: List<Statement>)
+class Program(val statements: List<Node>)
