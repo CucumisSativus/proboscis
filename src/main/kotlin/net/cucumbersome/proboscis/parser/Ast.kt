@@ -20,6 +20,26 @@ data class Identifier(val value: String, override val token: Token, override val
 data class IntegerLiteral(val value: Int, override val token: Token, override val tokenPosition: TokenPosition) :
   Expression
 
+enum class PrefixOperator(val value: String) {
+  BANG("!"),
+  MINUS("-");
+
+  companion object {
+    fun fromToken(token: Token): PrefixOperator? = when (token) {
+      Token.Companion.Bang -> BANG
+      Token.Companion.Minus -> MINUS
+      else -> null
+    }
+  }
+}
+
+data class PrefixExpression(
+  val operator: PrefixOperator,
+  val right: Expression,
+  override val token: Token,
+  override val tokenPosition: TokenPosition
+) : Expression
+
 sealed interface Statement : Node
 
 class LetStatement(

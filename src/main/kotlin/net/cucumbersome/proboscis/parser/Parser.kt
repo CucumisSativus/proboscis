@@ -152,13 +152,14 @@ class Parser(val lexer: Lexer) {
   private fun parseExpression(lexer: Lexer, precedence: Precedence): ParseExpressionResult<out Expression> {
     val (token, newLexer) = lexer.nextToken()
     return when (token) {
+      is Token.Companion.Bang, is Token.Companion.Minus -> parsePrefixExpression(lexer)
       is Token.Companion.Identifier -> SuccessfulParseExpressionResult(
-        Identifier(token.value, token, TokenPosition(lexer)),
+        Identifier(token.value, token, TokenPosition(newLexer)),
         newLexer
       )
 
       is Token.Companion.IntValue -> SuccessfulParseExpressionResult(
-        IntegerLiteral(token.value, token, TokenPosition(lexer)),
+        IntegerLiteral(token.value, token, TokenPosition(newLexer)),
         newLexer
       )
 
@@ -167,6 +168,24 @@ class Parser(val lexer: Lexer) {
         newLexer
       )
     }
+  }
+
+  private fun parsePrefixExpression(lexer: Lexer): ParseExpressionResult<out PrefixExpression> {
+    val (token, newLexer) = lexer.nextToken()
+    val operator = PrefixOperator.fromToken(token)
+      ?: return FailedParseExpressionResult(
+        listOf(ParserError("Unexpected prefix token $token", TokenPosition(lexer))),
+        newLexer
+      )
+    val parseExpressionResult = parseExpression(newLexer, Precedence.Prefix)
+    if (parseExpressionResult is FailedParseExpressionResult) {
+      return parseExpressionResult
+    }
+    val (expression, newLexer2) = parseExpressionResult as SuccessfulParseExpressionResult<out Expression>
+    return SuccessfulParseExpressionResult(
+      PrefixExpression(operator, expression, token, TokenPosition(newLexer)),
+      newLexer2
+    )
   }
 
   companion object {

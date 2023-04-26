@@ -18,9 +18,9 @@ class TestStatementParser {
     val statements = getProgram(input).statements
     assertEquals(3, statements.size)
     val tests = listOf(
-      "x" to Pair(5, 7),
-      "y" to Pair(10, 18),
-      "foobar" to Pair(838383, 35)
+      "x" to Pair(5, 9),
+      "y" to Pair(10, 21),
+      "foobar" to Pair(838383, 42)
     )
     tests.forEachIndexed { index, (expectedIdentifier, expectedValue) ->
       val statement = statements[index]
@@ -74,9 +74,9 @@ class TestStatementParser {
 
     assertEquals(3, statements.size)
     val tests = listOf(
-      5 to 6,
-      10 to 16,
-      838383 to 27
+      5 to 8,
+      10 to 19,
+      838383 to 34
     )
     tests.forEachIndexed { index, (expectedValue, expectedPosition) ->
       val statement = statements[index]
