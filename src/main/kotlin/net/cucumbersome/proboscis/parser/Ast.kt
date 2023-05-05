@@ -33,6 +33,39 @@ enum class PrefixOperator(val value: String) {
   }
 }
 
+enum class InfixOperator(val value: String) {
+  PLUS("+"),
+  MINUS("-"),
+  ASTERISK("*"),
+  SLASH("/"),
+  LESS_THAN("<"),
+  GREATER_THAN(">"),
+  EQUAL("=="),
+  NOT_EQUAL("!=");
+
+  companion object {
+    fun fromToken(token: Token): InfixOperator? = when (token) {
+      Token.Companion.Plus -> PLUS
+      Token.Companion.Minus -> MINUS
+      Token.Companion.Asterisk -> ASTERISK
+      Token.Companion.Slash -> SLASH
+      Token.Companion.LessThan -> LESS_THAN
+      Token.Companion.GreaterThan -> GREATER_THAN
+      Token.Companion.Equal -> EQUAL
+      Token.Companion.NotEqual -> NOT_EQUAL
+      else -> null
+    }
+  }
+}
+
+data class InfixExpression(
+  val left: Expression,
+  val operator: InfixOperator,
+  val right: Expression,
+  override val token: Token,
+  override val tokenPosition: TokenPosition
+) : Expression
+
 data class PrefixExpression(
   val operator: PrefixOperator,
   val right: Expression,

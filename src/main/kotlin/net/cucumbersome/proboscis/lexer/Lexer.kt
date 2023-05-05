@@ -49,7 +49,7 @@ class Lexer private constructor(
       '/' -> Token.Companion.Slash
       '*' -> Token.Companion.Asterisk
       '<' -> Token.Companion.LessThan
-      '>' -> Token.Companion.GreaterTHan
+      '>' -> Token.Companion.GreaterThan
       else -> {
         if (couldBeIdentifier(character)) {
           readKeywordOrIdentifier(currentInput)

@@ -113,7 +113,7 @@ class TestLexer {
       Token.Companion.IntValue(5),
       Token.Companion.LessThan,
       Token.Companion.IntValue(10),
-      Token.Companion.GreaterTHan,
+      Token.Companion.GreaterThan,
       Token.Companion.IntValue(5),
       Token.Companion.Semicolon,
       Token.Companion.If,

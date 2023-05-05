@@ -73,19 +73,116 @@ class TestParseExpressions {
       )
     )
 
-    tests.forEachIndexed { index, operator ->
+    tests.forEachIndexed { index, expectedOperator ->
       val statement = statements[index]
       if (statement !is PrefixExpression) {
         throw AssertionError("Statement at index $index is not a PrefixExpression")
       }
-      assertEquals(operator.operator, statement.operator, "Operator at index $index is not the expected one")
-      assertEquals(operator.token, statement.token, "Token at index $index is not the expected one")
+      assertEquals(expectedOperator.operator, statement.operator, "Operator at index $index is not the expected one")
+      assertEquals(expectedOperator.token, statement.token, "Token at index $index is not the expected one")
       assertEquals(
-        operator.tokenPosition,
+        expectedOperator.tokenPosition,
         statement.tokenPosition,
         "TokenPosition at index $index is not the expected one"
       )
-      assertEquals(operator.right, statement.right, "Right expression at index $index is not the expected one")
+      assertEquals(expectedOperator.right, statement.right, "Right expression at index $index is not the expected one")
+    }
+  }
+
+  @Test
+  fun testInfixExpressions() {
+    val input = """
+      5 + 5;
+      5 - 5;
+      5 * 5;
+      5 / 5;
+      5 > 5;
+      5 < 5;
+      5 == 5;
+      5 != 5;
+    """.trimIndent()
+
+    val expectedExpressions = listOf(
+      InfixExpression(
+        IntegerLiteral(5, Token.Companion.IntValue(5), TokenPosition(position = 1, line = 1, column = 1)),
+        InfixOperator.PLUS,
+        IntegerLiteral(5, Token.Companion.IntValue(5), TokenPosition(position = 5, line = 1, column = 5)),
+        Token.Companion.Plus,
+        TokenPosition(position = 3, line = 1, column = 3)
+      ),
+      InfixExpression(
+        IntegerLiteral(5, Token.Companion.IntValue(5), TokenPosition(position = 8, line = 2, column = 2)),
+        InfixOperator.MINUS,
+        IntegerLiteral(5, Token.Companion.IntValue(5), TokenPosition(position = 12, line = 2, column = 6)),
+        Token.Companion.Minus,
+        TokenPosition(position = 10, line = 2, column = 4)
+      ),
+      InfixExpression(
+        IntegerLiteral(5, Token.Companion.IntValue(5), TokenPosition(position = 15, line = 3, column = 2)),
+        InfixOperator.ASTERISK,
+        IntegerLiteral(5, Token.Companion.IntValue(5), TokenPosition(position = 19, line = 3, column = 6)),
+        Token.Companion.Asterisk,
+        TokenPosition(position = 17, line = 3, column = 4)
+      ),
+      InfixExpression(
+        IntegerLiteral(5, Token.Companion.IntValue(5), TokenPosition(position = 22, line = 4, column = 2)),
+        InfixOperator.SLASH,
+        IntegerLiteral(5, Token.Companion.IntValue(5), TokenPosition(position = 26, line = 4, column = 6)),
+        Token.Companion.Slash,
+        TokenPosition(position = 24, line = 4, column = 4)
+      ),
+      InfixExpression(
+        IntegerLiteral(5, Token.Companion.IntValue(5), TokenPosition(position = 29, line = 5, column = 2)),
+        InfixOperator.GREATER_THAN,
+        IntegerLiteral(5, Token.Companion.IntValue(5), TokenPosition(position = 33, line = 5, column = 6)),
+        Token.Companion.GreaterThan,
+        TokenPosition(position = 31, line = 5, column = 4)
+      ),
+      InfixExpression(
+        IntegerLiteral(5, Token.Companion.IntValue(5), TokenPosition(position = 36, line = 6, column = 2)),
+        InfixOperator.LESS_THAN,
+        IntegerLiteral(5, Token.Companion.IntValue(5), TokenPosition(position = 40, line = 6, column = 6)),
+        Token.Companion.LessThan,
+        TokenPosition(position = 38, line = 6, column = 4)
+      ),
+      InfixExpression(
+        IntegerLiteral(5, Token.Companion.IntValue(5), TokenPosition(position = 43, line = 7, column = 2)),
+        InfixOperator.EQUAL,
+        IntegerLiteral(5, Token.Companion.IntValue(5), TokenPosition(position = 48, line = 7, column = 7)),
+        Token.Companion.Equal,
+        TokenPosition(position = 46, line = 7, column = 5)
+      ),
+      InfixExpression(
+        IntegerLiteral(5, Token.Companion.IntValue(5), TokenPosition(position = 51, line = 8, column = 2)),
+        InfixOperator.NOT_EQUAL,
+        IntegerLiteral(5, Token.Companion.IntValue(5), TokenPosition(position = 56, line = 8, column = 7)),
+        Token.Companion.NotEqual,
+        TokenPosition(position = 54, line = 8, column = 5)
+      )
+    )
+
+    val statements = ParserHelper.getProgram(input).statements
+    assertEquals(expectedExpressions.size, statements.size)
+
+    expectedExpressions.forEachIndexed { index, expectedExpression ->
+      val statement = statements[index]
+      if (statement !is InfixExpression) {
+        throw AssertionError("Statement at index $index is not an InfixExpression")
+      }
+      assertEquals(expectedExpression.left, statement.left, "Left expression at index $index is not the expected one")
+      assertEquals(expectedExpression.operator, statement.operator, "Operator at index $index is not the expected one")
+      assertEquals(
+        expectedExpression.right,
+        statement.right,
+        "Right expression at index $index is not the expected one"
+      )
+      assertEquals(expectedExpression.token, statement.token, "Token at index $index is not the expected one")
+      assertEquals(
+        expectedExpression.tokenPosition,
+        statement.tokenPosition,
+
+        "TokenPosition at index $index is not the expected one"
+      )
     }
   }
 }
