@@ -185,4 +185,61 @@ class TestParseExpressions {
       )
     }
   }
+
+  @Test
+  fun testPrecedenceParsing() {
+    val tests = listOf(
+      "-a * b",
+      "!-a",
+      "a + b + c",
+      "a + b - c",
+      "a * b * c",
+      "a * b / c",
+      "a + b / c",
+      "a + b * c + d / e - f",
+      "3 + 4; -5 * 5",
+      "5 > 4 == 3 < 4",
+      "5 < 4 != 3 > 4",
+      "3 + 4 * 5 == 3 * 1 + 4 * 5",
+      "true",
+      "false",
+      "3 > 5 == false",
+      "3 < 5 == true",
+      "1 + (2 + 3) + 4",
+      "(5 + 5) * 2",
+      "2 / (5 + 5)",
+      "-(5 + 5)",
+      "!(true == true)"
+    )
+
+    val expectedOutputs = listOf(
+      "((-a) * b)",
+      "(!(-a))",
+      "((a + b) + c)",
+      "((a + b) - c)",
+      "((a * b) * c)",
+      "((a * b) / c)",
+      "(a + (b / c))",
+      "(((a + (b * c)) + (d / e)) - f)",
+      "(3 + 4)((-5) * 5)",
+      "((5 > 4) == (3 < 4))",
+      "((5 < 4) != (3 > 4))",
+      "((3 + (4 * 5)) == ((3 * 1) + (4 * 5)))",
+      "true",
+      "false",
+      "((3 > 5) == false)",
+      "((3 < 5) == true)",
+      "((1 + (2 + 3)) + 4)",
+      "((5 + 5) * 2)",
+      "(2 / (5 + 5))",
+      "(-(5 + 5))",
+      "(!(true == true))"
+    )
+
+    tests.forEachIndexed { index, test ->
+      val program = ParserHelper.getProgram(test)
+      val actual = program.present()
+      assertEquals(expectedOutputs[index], actual)
+    }
+  }
 }

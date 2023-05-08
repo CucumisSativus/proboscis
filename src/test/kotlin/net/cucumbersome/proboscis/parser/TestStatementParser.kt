@@ -47,16 +47,16 @@ class TestStatementParser {
 
     val expectedErrors: List<ParserError> = listOf(
       ParserError("Expected =, got IntValue(value=5)", TokenPosition(position = 7, line = 1, column = 7)),
-      ParserError("Unexpected token ;", TokenPosition(position = 7, line = 1, column = 7)),
+      ParserError("Unexpected prefix token ;", TokenPosition(position = 7, line = 1, column = 7)),
       ParserError("Expected identifier, got =", TokenPosition(position = 12, line = 2, column = 4)),
       ParserError("Expected =, got IntValue(value=10)", TokenPosition(position = 17, line = 2, column = 9)),
-      ParserError("Unexpected token ;", TokenPosition(position = 17, line = 2, column = 9)),
+      ParserError("Unexpected prefix token ;", TokenPosition(position = 17, line = 2, column = 9)),
       ParserError(
         "Expected identifier, got IntValue(value=838383)",
         TokenPosition(position = 22, line = 3, column = 4)
       ),
       ParserError("Expected =, got ;", TokenPosition(position = 30, line = 3, column = 12)),
-      ParserError("Unexpected token EOF", TokenPosition(position = 30, line = 3, column = 12))
+      ParserError("Unexpected prefix token EOF", TokenPosition(position = 30, line = 3, column = 12))
     )
 
     return testErrorHandling(input, expectedErrors)
@@ -100,10 +100,19 @@ class TestStatementParser {
     """.trimIndent()
 
     val expectedErrors: List<ParserError> = listOf(
-      ParserError(message = "Unexpected token return", position = TokenPosition(position = 6, line = 1, column = 6)),
-      ParserError(message = "Unexpected token ;", position = TokenPosition(position = 13, line = 1, column = 13)),
-      ParserError(message = "Unexpected token let", position = TokenPosition(position = 21, line = 2, column = 7)),
-      ParserError(message = "Unexpected token ;", position = TokenPosition(position = 25, line = 2, column = 11))
+      ParserError(
+        message = "Unexpected prefix token return",
+        position = TokenPosition(position = 6, line = 1, column = 6)
+      ),
+      ParserError(
+        message = "Unexpected prefix token ;",
+        position = TokenPosition(position = 13, line = 1, column = 13)
+      ),
+      ParserError(
+        message = "Unexpected prefix token let",
+        position = TokenPosition(position = 21, line = 2, column = 7)
+      ),
+      ParserError(message = "Unexpected prefix token ;", position = TokenPosition(position = 25, line = 2, column = 11))
     )
 
     return testErrorHandling(input, expectedErrors)

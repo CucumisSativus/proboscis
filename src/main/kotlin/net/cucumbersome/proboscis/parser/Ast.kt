@@ -10,15 +10,25 @@ data class TokenPosition(val position: Int, val line: Int, val column: Int) {
 sealed interface Node {
   val token: Token
   val tokenPosition: TokenPosition
+  fun present(): String
 }
 
 sealed interface Expression : Node
 
 data class Identifier(val value: String, override val token: Token, override val tokenPosition: TokenPosition) :
-  Expression
+  Expression {
+  override fun present(): String = value
+}
 
 data class IntegerLiteral(val value: Int, override val token: Token, override val tokenPosition: TokenPosition) :
-  Expression
+  Expression {
+  override fun present(): String = value.toString()
+}
+
+data class BooleanLiteral(val value: Boolean, override val token: Token, override val tokenPosition: TokenPosition) :
+  Expression {
+  override fun present(): String = value.toString()
+}
 
 enum class PrefixOperator(val value: String) {
   BANG("!"),
@@ -64,14 +74,18 @@ data class InfixExpression(
   val right: Expression,
   override val token: Token,
   override val tokenPosition: TokenPosition
-) : Expression
+) : Expression {
+  override fun present(): String = "(${left.present()} ${operator.value} ${right.present()})"
+}
 
 data class PrefixExpression(
   val operator: PrefixOperator,
   val right: Expression,
   override val token: Token,
   override val tokenPosition: TokenPosition
-) : Expression
+) : Expression {
+  override fun present(): String = "(${operator.value}${right.present()})"
+}
 
 sealed interface Statement : Node
 
@@ -80,12 +94,18 @@ class LetStatement(
   val value: Expression,
   override val token: Token,
   override val tokenPosition: TokenPosition
-) : Statement
+) : Statement {
+  override fun present(): String = "let ${name.present()} = ${value.present()}"
+}
 
 class ReturnStatement(
   val returnValue: Expression,
   override val token: Token,
   override val tokenPosition: TokenPosition
-) : Statement
+) : Statement {
+  override fun present(): String = "return ${returnValue.present()}"
+}
 
-class Program(val statements: List<Node>)
+class Program(val statements: List<Node>) {
+  fun present(): String = statements.joinToString(separator = "") { it.present() }
+}
