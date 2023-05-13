@@ -156,15 +156,12 @@ class Parser(val lexer: Lexer) {
   }
 
   private fun parseExpressionStatement(lexer: Lexer): ParseExpressionResult<out Expression> {
-    val parseExpressionResult = parseExpression(lexer, Precedence.Lowest)
-    if (parseExpressionResult is FailedParseExpressionResult) {
-      return parseExpressionResult
-    }
-    val (expression, newLexer) = parseExpressionResult as SuccessfulParseExpressionResult<out Expression>
-    return if (newLexer.nextTokenIs(Token.Companion.Semicolon)) {
-      SuccessfulParseExpressionResult(expression, newLexer.nextToken().second)
-    } else {
-      SuccessfulParseExpressionResult(expression, newLexer)
+    return parseExpression(lexer, Precedence.Lowest).flatMap { expression, newLexer ->
+      if (newLexer.nextTokenIs(Token.Companion.Semicolon)) {
+        SuccessfulParseExpressionResult(expression, newLexer.nextToken().second)
+      } else {
+        SuccessfulParseExpressionResult(expression, newLexer)
+      }
     }
   }
 
