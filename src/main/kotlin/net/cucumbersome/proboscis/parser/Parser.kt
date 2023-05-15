@@ -8,10 +8,10 @@ data class ParserError(val message: String, val position: TokenPosition) {
   override fun toString(): String = "$message at line ${position.line}, column ${position.column}"
 }
 
-sealed interface ParseStatementResult<T : Statement> {
+sealed interface ParseStatementResult<T : Node> {
   val lexer: Lexer
 
-  fun <U : Statement> map(f: (statement: T, lexer: Lexer) -> ParseStatementResult<out U>): ParseStatementResult<out U> =
+  fun <U : Node> flatMap(f: (statement: T, lexer: Lexer) -> ParseStatementResult<out U>): ParseStatementResult<out U> =
     when (this) {
       is SuccessfulParseStatementResult -> f(this.statement, this.lexer)
       is FailedParseStatementResult -> this
@@ -24,36 +24,11 @@ sealed interface ParseStatementResult<T : Statement> {
     }
 }
 
-data class SuccessfulParseStatementResult<T : Statement>(val statement: T, override val lexer: Lexer) :
+data class SuccessfulParseStatementResult<T : Node>(val statement: T, override val lexer: Lexer) :
   ParseStatementResult<T>
 
 data class FailedParseStatementResult(val errors: List<ParserError>, override val lexer: Lexer) :
   ParseStatementResult<Nothing>
-
-sealed interface ParseExpressionResult<T : Expression> {
-  val lexer: Lexer
-  fun <U : Expression> flatMap(f: (expression: T, lexer: Lexer) -> ParseExpressionResult<out U>): ParseExpressionResult<out U> =
-    when (this) {
-      is SuccessfulParseExpressionResult -> f(this.expression, this.lexer)
-      is FailedParseExpressionResult -> this
-    }
-
-  fun <U : Statement> toStatementResult(
-    onSuccess: (expression: T, lexer: Lexer) -> ParseStatementResult<out U>,
-    onFailure: (errors: List<ParserError>, lexer: Lexer) -> ParseStatementResult<out U>
-  ): ParseStatementResult<out U> = when (this) {
-    is SuccessfulParseExpressionResult -> onSuccess(this.expression, this.lexer)
-    is FailedParseExpressionResult -> onFailure(this.errors, this.lexer)
-  }
-
-  fun isSuccessful(): Boolean = this is SuccessfulParseExpressionResult
-}
-
-data class SuccessfulParseExpressionResult<T : Expression>(val expression: T, override val lexer: Lexer) :
-  ParseExpressionResult<T>
-
-data class FailedParseExpressionResult(val errors: List<ParserError>, override val lexer: Lexer) :
-  ParseExpressionResult<Nothing>
 
 data class ProgramParseError(val errors: List<ParserError>)
 
@@ -98,13 +73,13 @@ class Parser(val lexer: Lexer) {
 
         else -> {
           when (val parseResult = parseExpressionStatement(currentLexer)) {
-            is SuccessfulParseExpressionResult -> parseProgram(
+            is SuccessfulParseStatementResult -> parseProgram(
               parseResult.lexer,
-              statements + parseResult.expression,
+              statements + parseResult.statement,
               errors
             )
 
-            is FailedParseExpressionResult -> parseProgram(parseResult.lexer, statements, errors + parseResult.errors)
+            is FailedParseStatementResult -> parseProgram(parseResult.lexer, statements, errors + parseResult.errors)
           }
         }
       }
@@ -113,12 +88,12 @@ class Parser(val lexer: Lexer) {
   }
 
   private fun parseReturnStatement(lexer: Lexer): ParseStatementResult<out ReturnStatement> {
-    return parseExpressionStatement(lexer).toStatementResult({ expression, newLexer ->
+    return parseExpressionStatement(lexer).flatMap { expression, newLexer ->
       SuccessfulParseStatementResult(
         ReturnStatement(expression, Token.Companion.Return, TokenPosition(lexer)),
         newLexer
       )
-    }, { errors, newLexer -> FailedParseStatementResult(errors, newLexer) })
+    }
   }
 
   private fun parseLetStatement(lexer: Lexer): ParseStatementResult<out LetStatement> {
@@ -134,11 +109,11 @@ class Parser(val lexer: Lexer) {
     }
 
     val parseExpressionResult = parseExpressionStatement(newLexer2)
-    if (parseExpressionResult is FailedParseExpressionResult) {
+    if (parseExpressionResult is FailedParseStatementResult) {
       errors.addAll(parseExpressionResult.errors)
       return FailedParseStatementResult(errors, parseExpressionResult.lexer)
     }
-    val (expression, newLexer3) = parseExpressionResult as SuccessfulParseExpressionResult<out Expression>
+    val (expression, newLexer3) = parseExpressionResult as SuccessfulParseStatementResult<out Expression>
 
     return if (errors.isNotEmpty() || identifierToken !is Token.Companion.Identifier) {
       FailedParseStatementResult(errors, newLexer3)
@@ -155,109 +130,109 @@ class Parser(val lexer: Lexer) {
     }
   }
 
-  private fun parseExpressionStatement(lexer: Lexer): ParseExpressionResult<out Expression> {
+  private fun parseExpressionStatement(lexer: Lexer): ParseStatementResult<out Expression> {
     return parseExpression(lexer, Precedence.Lowest).flatMap { expression, newLexer ->
       if (newLexer.nextTokenIs(Token.Companion.Semicolon)) {
-        SuccessfulParseExpressionResult(expression, newLexer.nextToken().second)
+        SuccessfulParseStatementResult(expression, newLexer.nextToken().second)
       } else {
-        SuccessfulParseExpressionResult(expression, newLexer)
+        SuccessfulParseStatementResult(expression, newLexer)
       }
     }
   }
 
-  private fun parseExpression(lexer: Lexer, precedence: Precedence): ParseExpressionResult<out Expression> {
+  private fun parseExpression(lexer: Lexer, precedence: Precedence): ParseStatementResult<out Expression> {
     val prefix = getPrefix(lexer)
-    if (prefix is FailedParseExpressionResult) {
+    if (prefix is FailedParseStatementResult) {
       return prefix
     }
-    val left = prefix as SuccessfulParseExpressionResult<out Expression>
+    val left = prefix as SuccessfulParseStatementResult<out Expression>
 
-    tailrec fun iterate(iterationLexer: Lexer, leftExpression: Expression): ParseExpressionResult<out Expression> {
+    tailrec fun iterate(iterationLexer: Lexer, leftExpression: Expression): ParseStatementResult<out Expression> {
       if (iterationLexer.nextTokenIs(Token.Companion.Semicolon) || precedence >= nextPrecedence(iterationLexer)) {
-        return SuccessfulParseExpressionResult(leftExpression, iterationLexer)
+        return SuccessfulParseStatementResult(leftExpression, iterationLexer)
       }
       val (operatorToken, lexerAfterOperator) = iterationLexer.nextToken()
       if (InfixOperator.fromToken(operatorToken) == null) {
-        return SuccessfulParseExpressionResult(leftExpression, iterationLexer)
+        return SuccessfulParseStatementResult(leftExpression, iterationLexer)
       }
       val newLeft = parseInfixExpression(iterationLexer, leftExpression)
-      return if (newLeft is SuccessfulParseExpressionResult) {
-        iterate(newLeft.lexer, newLeft.expression)
+      return if (newLeft is SuccessfulParseStatementResult) {
+        iterate(newLeft.lexer, newLeft.statement)
       } else {
         newLeft
       }
     }
 
-    return iterate(left.lexer, left.expression)
+    return iterate(left.lexer, left.statement)
   }
 
-  private fun getPrefix(lexer: Lexer): ParseExpressionResult<out Expression> {
+  private fun getPrefix(lexer: Lexer): ParseStatementResult<out Expression> {
     val (token, newLexer) = lexer.nextToken()
     return when (token) {
       is Token.Companion.Bang, is Token.Companion.Minus -> parsePrefixExpression(lexer)
-      is Token.Companion.Identifier -> SuccessfulParseExpressionResult(
+      is Token.Companion.Identifier -> SuccessfulParseStatementResult(
         Identifier(token.value, token, TokenPosition(newLexer)),
         newLexer
       )
 
-      is Token.Companion.IntValue -> SuccessfulParseExpressionResult(
+      is Token.Companion.IntValue -> SuccessfulParseStatementResult(
         IntegerLiteral(token.value, token, TokenPosition(newLexer)),
         newLexer
       )
 
-      is Token.Companion.True -> SuccessfulParseExpressionResult(
+      is Token.Companion.True -> SuccessfulParseStatementResult(
         BooleanLiteral(true, token, TokenPosition(newLexer)),
         newLexer
       )
 
-      is Token.Companion.False -> SuccessfulParseExpressionResult(
+      is Token.Companion.False -> SuccessfulParseStatementResult(
         BooleanLiteral(false, token, TokenPosition(newLexer)),
         newLexer
       )
 
       is Token.Companion.LeftParen -> parseGroupedExpression(newLexer)
-      else -> FailedParseExpressionResult(
+      else -> FailedParseStatementResult(
         listOf(ParserError("Unexpected prefix token $token", TokenPosition(lexer))),
         newLexer
       )
     }
   }
 
-  private fun parseGroupedExpression(lexer: Lexer): ParseExpressionResult<out Expression> {
+  private fun parseGroupedExpression(lexer: Lexer): ParseStatementResult<out Expression> {
     val result = parseExpression(lexer, Precedence.Lowest)
-    if (result is FailedParseExpressionResult) {
+    if (result is FailedParseStatementResult) {
       return result
     }
 
     return result.flatMap { expression, newLexer ->
       if (!newLexer.nextTokenIs(Token.Companion.RightParen)) {
-        FailedParseExpressionResult(
+        FailedParseStatementResult(
           listOf(ParserError("Expected ), got ${newLexer.nextToken().first}", TokenPosition(newLexer))),
           newLexer
         )
       }
-      SuccessfulParseExpressionResult(expression, newLexer.nextToken().second)
+      SuccessfulParseStatementResult(expression, newLexer.nextToken().second)
     }
   }
 
-  private fun parsePrefixExpression(lexer: Lexer): ParseExpressionResult<out PrefixExpression> {
+  private fun parsePrefixExpression(lexer: Lexer): ParseStatementResult<out PrefixExpression> {
     val (token, newLexer) = lexer.nextToken()
-    val operator = PrefixOperator.fromToken(token) ?: return FailedParseExpressionResult(
+    val operator = PrefixOperator.fromToken(token) ?: return FailedParseStatementResult(
       listOf(ParserError("Unexpected prefix token $token", TokenPosition(lexer))),
       newLexer
     )
 
     return parseExpression(newLexer, Precedence.Prefix).flatMap { expression, newLexer2 ->
-      SuccessfulParseExpressionResult(
+      SuccessfulParseStatementResult(
         PrefixExpression(operator, expression, token, TokenPosition(newLexer)),
         newLexer2
       )
     }
   }
 
-  private fun parseInfixExpression(lexer: Lexer, left: Expression): ParseExpressionResult<out InfixExpression> {
+  private fun parseInfixExpression(lexer: Lexer, left: Expression): ParseStatementResult<out InfixExpression> {
     val (token, newLexer) = lexer.nextToken()
-    val operator = InfixOperator.fromToken(token) ?: return FailedParseExpressionResult(
+    val operator = InfixOperator.fromToken(token) ?: return FailedParseStatementResult(
       listOf(ParserError("Unexpected infix token $token", TokenPosition(lexer))),
       newLexer
     )
@@ -265,7 +240,7 @@ class Parser(val lexer: Lexer) {
     val parseExpressionResult = parseExpression(newLexer, precedence)
 
     return parseExpressionResult.flatMap { expression, newLexer2 ->
-      SuccessfulParseExpressionResult(
+      SuccessfulParseStatementResult(
         InfixExpression(left, operator, expression, token, TokenPosition(newLexer)),
         newLexer2
       )

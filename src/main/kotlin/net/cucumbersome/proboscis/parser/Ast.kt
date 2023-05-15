@@ -87,6 +87,24 @@ data class PrefixExpression(
   override fun present(): String = "(${operator.value}${right.present()})"
 }
 
+data class BlockStatement(
+  val statements: List<Node>,
+  override val token: Token,
+  override val tokenPosition: TokenPosition
+) : Statement {
+  override fun present(): String = "{${statements.joinToString(separator = " ") { it.present() }}}"
+}
+
+data class IfExpression(
+  val condition: Expression,
+  val consequence: BlockStatement,
+  val alternative: BlockStatement?,
+  override val token: Token,
+  override val tokenPosition: TokenPosition
+) : Expression {
+  override fun present(): String = "if ${condition.present()} ${consequence.present()}${alternative?.present() ?: ""}"
+}
+
 sealed interface Statement : Node
 
 class LetStatement(
