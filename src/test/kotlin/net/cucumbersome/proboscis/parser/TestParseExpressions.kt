@@ -242,4 +242,80 @@ class TestParseExpressions {
       assertEquals(expectedOutputs[index], actual)
     }
   }
+
+  @Test
+  fun parseIfExpression() {
+    val input = "if (x < y) { x }"
+    val expectedExpression = IfExpression(
+      InfixExpression(
+        Identifier("x", Token.Companion.Identifier("x"), TokenPosition(position = 5, line = 1, column = 5)),
+        InfixOperator.LESS_THAN,
+        Identifier("y", Token.Companion.Identifier("y"), TokenPosition(position = 9, line = 1, column = 9)),
+        Token.Companion.LessThan,
+        TokenPosition(position = 7, line = 1, column = 7)
+      ),
+      BlockStatement(
+        listOf(
+          Identifier("x", Token.Companion.Identifier("x"), TokenPosition(position = 14, line = 1, column = 14))
+        ),
+        Token.Companion.LeftBrace,
+        TokenPosition(position = 12, line = 1, column = 12)
+      ),
+      null,
+      Token.Companion.If,
+      TokenPosition(position = 2, line = 1, column = 2)
+    )
+    val obtainedNodes = ParserHelper.getProgram(input).statements
+    assertEquals(1, obtainedNodes.size)
+    val obtainedExpression = obtainedNodes[0]
+    if (obtainedExpression !is IfExpression) {
+      throw AssertionError("Statement is not an IfExpression")
+    }
+    assertEquals(expectedExpression.condition, obtainedExpression.condition)
+    assertEquals(expectedExpression.consequence, obtainedExpression.consequence)
+    assertEquals(expectedExpression.alternative, obtainedExpression.alternative)
+    assertEquals(expectedExpression.token, obtainedExpression.token)
+    assertEquals(expectedExpression.tokenPosition, obtainedExpression.tokenPosition)
+  }
+
+  @Test
+  fun testIfExpressionWithAlternative() {
+    val input = "if (x < y) { x } else { y }"
+    val expectedExpression = IfExpression(
+      InfixExpression(
+        Identifier("x", Token.Companion.Identifier("x"), TokenPosition(position = 5, line = 1, column = 5)),
+        InfixOperator.LESS_THAN,
+        Identifier("y", Token.Companion.Identifier("y"), TokenPosition(position = 9, line = 1, column = 9)),
+        Token.Companion.LessThan,
+        TokenPosition(position = 7, line = 1, column = 7)
+      ),
+      BlockStatement(
+        listOf(
+          Identifier("x", Token.Companion.Identifier("x"), TokenPosition(position = 14, line = 1, column = 14))
+        ),
+        Token.Companion.LeftBrace,
+        TokenPosition(position = 12, line = 1, column = 12)
+      ),
+      BlockStatement(
+        listOf(
+          Identifier("y", Token.Companion.Identifier("y"), TokenPosition(position = 25, line = 1, column = 25))
+        ),
+        Token.Companion.LeftBrace,
+        TokenPosition(position = 23, line = 1, column = 23)
+      ),
+      Token.Companion.If,
+      TokenPosition(position = 2, line = 1, column = 2)
+    )
+    val obtainedNodes = ParserHelper.getProgram(input).statements
+    assertEquals(1, obtainedNodes.size)
+    val obtainedExpression = obtainedNodes[0]
+    if (obtainedExpression !is IfExpression) {
+      throw AssertionError("Statement is not an IfExpression")
+    }
+    assertEquals(expectedExpression.condition, obtainedExpression.condition)
+    assertEquals(expectedExpression.consequence, obtainedExpression.consequence)
+    assertEquals(expectedExpression.alternative, obtainedExpression.alternative)
+    assertEquals(expectedExpression.token, obtainedExpression.token)
+    assertEquals(expectedExpression.tokenPosition, obtainedExpression.tokenPosition)
+  }
 }

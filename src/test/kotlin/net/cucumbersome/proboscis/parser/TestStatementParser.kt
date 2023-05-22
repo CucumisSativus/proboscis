@@ -117,4 +117,53 @@ class TestStatementParser {
 
     return testErrorHandling(input, expectedErrors)
   }
+
+  @Test
+  fun parseBlockStatement() {
+    val input = """
+      {
+        x;
+        y;
+      }
+    """.trimIndent()
+
+    val expectedBlockStatement = BlockStatement(
+      token = Token.Companion.LeftBrace,
+      tokenPosition = TokenPosition(position = 1, line = 1, column = 1),
+      statements = listOf(
+        Identifier(
+          token = Token.Companion.Identifier("x"),
+          value = "x",
+          tokenPosition = TokenPosition(position = 5, line = 2, column = 4)
+        ),
+        Identifier(
+          token = Token.Companion.Identifier("y"),
+          value = "y",
+          tokenPosition = TokenPosition(position = 10, line = 3, column = 4)
+        )
+      )
+    )
+    val statements = getProgram(input).statements
+    assertEquals(1, statements.size)
+    val blockStatement = statements.first()
+    if (blockStatement !is BlockStatement) {
+      throw AssertionError("Statement is not a BlockStatement")
+    }
+    assertEquals(expectedBlockStatement.token, blockStatement.token)
+    assertEquals(expectedBlockStatement.tokenPosition, blockStatement.tokenPosition)
+    assertEquals(expectedBlockStatement.statements.size, blockStatement.statements.size)
+    expectedBlockStatement.statements.forEachIndexed { index, expectedStatement ->
+      val statement = blockStatement.statements[index]
+      if (statement !is Identifier) {
+        throw AssertionError("Statement is not an Identifier")
+      }
+      assertEquals(expectedStatement.token, statement.token, "Token at index $index is not equal")
+      assertEquals((expectedStatement as Identifier).value, statement.value, "Value at index $index is not equal")
+      assertEquals(
+        expectedStatement.tokenPosition,
+        statement.tokenPosition,
+        "TokenPosition at index $index is not equal"
+      )
+    }
+  }
 }

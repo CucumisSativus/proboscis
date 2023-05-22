@@ -17,10 +17,27 @@ sealed interface ParseStatementResult<T : Node> {
       is FailedParseStatementResult -> this
     }
 
-  fun mapError(f: (errors: List<ParserError>, lexer: Lexer) -> ParseStatementResult<out T>): ParseStatementResult<out T> =
+  fun appendErrors(errors: List<ParserError>): ParseStatementResult<out T> =
     when (this) {
-      is SuccessfulParseStatementResult -> this
-      is FailedParseStatementResult -> f(this.errors, this.lexer)
+      is SuccessfulParseStatementResult -> {
+        if (errors.isNotEmpty()) {
+          FailedParseStatementResult(errors, this.lexer)
+        } else {
+          this
+        }
+      }
+
+      is FailedParseStatementResult -> FailedParseStatementResult(this.errors + errors, this.lexer)
+    }
+
+  fun <U : Node> appendResult(result: ParseStatementResult<out U>): ParseStatementResult<out U> =
+    when (result) {
+      is SuccessfulParseStatementResult -> when (this) {
+        is SuccessfulParseStatementResult -> result
+        is FailedParseStatementResult -> result.appendErrors(this.errors)
+      }
+
+      is FailedParseStatementResult -> this.appendErrors(result.errors) as FailedParseStatementResult
     }
 }
 
@@ -29,6 +46,29 @@ data class SuccessfulParseStatementResult<T : Node>(val statement: T, override v
 
 data class FailedParseStatementResult(val errors: List<ParserError>, override val lexer: Lexer) :
   ParseStatementResult<Nothing>
+
+fun <T : Node, U : Node, V : Node, R : Node> map3(
+  result1: ParseStatementResult<T>,
+  result2: ParseStatementResult<U>,
+  result3: ParseStatementResult<V>,
+  f: (T, U, V) -> R
+): ParseStatementResult<out R> =
+  if (result1 is SuccessfulParseStatementResult && result2 is SuccessfulParseStatementResult && result3 is SuccessfulParseStatementResult) {
+    SuccessfulParseStatementResult(f(result1.statement, result2.statement, result3.statement), result3.lexer)
+  } else {
+    result1.appendResult(result2).appendResult(result3) as FailedParseStatementResult
+  }
+
+fun <T : Node, U : Node, R : Node> map2(
+  result1: ParseStatementResult<T>,
+  result2: ParseStatementResult<U>,
+  f: (T, U) -> R
+): ParseStatementResult<out R> =
+  if (result1 is SuccessfulParseStatementResult && result2 is SuccessfulParseStatementResult) {
+    SuccessfulParseStatementResult(f(result1.statement, result2.statement), result2.lexer)
+  } else {
+    result1.appendResult(result2) as FailedParseStatementResult
+  }
 
 data class ProgramParseError(val errors: List<ParserError>)
 
@@ -39,40 +79,15 @@ class Parser(val lexer: Lexer) {
       statements: List<Node>,
       errors: List<ParserError>
     ): Either<ProgramParseError, Program> {
-      val (token, newLexer) = currentLexer.nextToken()
-      return when (token) {
+      return when (currentLexer.nextToken().first) {
         Token.Companion.Eof -> if (errors.isEmpty()) {
           Either.Right(Program(statements))
         } else {
           Either.Left(ProgramParseError(errors))
         }
 
-        Token.Companion.Let -> {
-          when (val parseResult = parseLetStatement(newLexer)) {
-            is SuccessfulParseStatementResult -> parseProgram(
-              parseResult.lexer,
-              statements + parseResult.statement,
-              errors
-            )
-
-            is FailedParseStatementResult -> parseProgram(parseResult.lexer, statements, errors + parseResult.errors)
-          }
-        }
-
-        Token.Companion.Return -> {
-          when (val parseResult = parseReturnStatement(newLexer)) {
-            is SuccessfulParseStatementResult -> parseProgram(
-              parseResult.lexer,
-              statements + parseResult.statement,
-              errors
-            )
-
-            is FailedParseStatementResult -> parseProgram(parseResult.lexer, statements, errors + parseResult.errors)
-          }
-        }
-
         else -> {
-          when (val parseResult = parseExpressionStatement(currentLexer)) {
+          when (val parseResult = parseStatement(currentLexer)) {
             is SuccessfulParseStatementResult -> parseProgram(
               parseResult.lexer,
               statements + parseResult.statement,
@@ -85,6 +100,112 @@ class Parser(val lexer: Lexer) {
       }
     }
     return parseProgram(lexer, emptyList(), emptyList())
+  }
+
+  private fun parseStatement(lexer: Lexer): ParseStatementResult<out Node> {
+    val (token, newLexer) = lexer.nextToken()
+    return when (token) {
+      Token.Companion.Let -> parseLetStatement(newLexer)
+      Token.Companion.Return -> parseReturnStatement(newLexer)
+      Token.Companion.LeftBrace -> parseBlockStatement(newLexer)
+      else -> parseExpressionStatement(lexer)
+    }
+  }
+
+  private fun parseBlockStatement(lexer: Lexer): ParseStatementResult<out BlockStatement> {
+    tailrec fun iterate(
+      acc: List<ParseStatementResult<out Node>>,
+      currentLexer: Lexer
+    ): List<ParseStatementResult<out Node>> {
+      return when (currentLexer.nextToken().first) {
+        Token.Companion.RightBrace, Token.Companion.Eof -> acc
+        else -> {
+          val parseStatementResult = parseStatement(currentLexer)
+          iterate(acc + parseStatementResult, parseStatementResult.lexer)
+        }
+      }
+    }
+
+    val statements = iterate(emptyList(), lexer)
+
+    val initial: ParseStatementResult<out BlockStatement> = SuccessfulParseStatementResult(
+      BlockStatement(emptyList(), Token.Companion.LeftBrace, TokenPosition(lexer)),
+      lexer
+    )
+
+    return statements.fold(initial) { acc, statement ->
+      when (statement) {
+        is SuccessfulParseStatementResult -> acc.flatMap { blockStatement, _ ->
+          SuccessfulParseStatementResult(
+            blockStatement.copy(statements = blockStatement.statements + statement.statement),
+            statement.lexer
+          )
+        }
+
+        is FailedParseStatementResult -> acc.appendErrors(statement.errors)
+      }
+    }.flatMap { blockStatement, lexerOnRightBrace ->
+      SuccessfulParseStatementResult(blockStatement, lexerOnRightBrace.nextToken().second)
+    }
+  }
+
+  private fun parseIfExpression(lexer: Lexer): ParseStatementResult<out IfExpression> {
+    val errors = mutableListOf<ParserError>()
+
+    val (leftParen, newLexer) = lexer.nextToken()
+    if (leftParen != Token.Companion.LeftParen) {
+      errors.add(ParserError("Expected (, got $leftParen", TokenPosition(lexer)))
+    }
+
+    val condition = parseExpressionStatement(newLexer)
+
+    val (rightParen, newLexer2) = condition.lexer.nextToken()
+    if (rightParen != Token.Companion.RightParen) {
+      errors.add(ParserError("Expected ), got $rightParen", TokenPosition(condition.lexer)))
+    }
+
+    val (leftBrace, newLexer3) = newLexer2.nextToken()
+    if (leftBrace != Token.Companion.LeftBrace) {
+      errors.add(ParserError("Expected {, got $leftBrace", TokenPosition(newLexer2)))
+    }
+
+    val consequence = parseBlockStatement(newLexer3)
+    val (elseToken, newLexer4) = consequence.lexer.nextToken()
+
+    val res = if (elseToken == Token.Companion.Else) {
+      val (elseLeftBrace, newLexer5) = newLexer4.nextToken()
+      if (elseLeftBrace != Token.Companion.LeftBrace) {
+        errors.add(ParserError("Expected {, got $elseLeftBrace", TokenPosition(newLexer4)))
+      }
+      val alternative = parseBlockStatement(newLexer5)
+      map3(
+        condition,
+        consequence,
+        alternative
+      ) { con, cons, alt ->
+        IfExpression(
+          con,
+          cons,
+          alt,
+          Token.Companion.If,
+          TokenPosition(lexer)
+        )
+      }
+    } else {
+      map2(
+        condition,
+        consequence
+      ) { con, cons ->
+        IfExpression(
+          con,
+          cons,
+          null,
+          Token.Companion.If,
+          TokenPosition(lexer)
+        )
+      }
+    }
+    return res.appendErrors(errors)
   }
 
   private fun parseReturnStatement(lexer: Lexer): ParseStatementResult<out ReturnStatement> {
@@ -151,7 +272,7 @@ class Parser(val lexer: Lexer) {
       if (iterationLexer.nextTokenIs(Token.Companion.Semicolon) || precedence >= nextPrecedence(iterationLexer)) {
         return SuccessfulParseStatementResult(leftExpression, iterationLexer)
       }
-      val (operatorToken, lexerAfterOperator) = iterationLexer.nextToken()
+      val (operatorToken, _) = iterationLexer.nextToken()
       if (InfixOperator.fromToken(operatorToken) == null) {
         return SuccessfulParseStatementResult(leftExpression, iterationLexer)
       }
@@ -191,6 +312,7 @@ class Parser(val lexer: Lexer) {
       )
 
       is Token.Companion.LeftParen -> parseGroupedExpression(newLexer)
+      is Token.Companion.If -> parseIfExpression(newLexer)
       else -> FailedParseStatementResult(
         listOf(ParserError("Unexpected prefix token $token", TokenPosition(lexer))),
         newLexer
