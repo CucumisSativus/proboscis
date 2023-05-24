@@ -20,10 +20,8 @@ enum class Precedence(val value: Int) {
       return if (operator != null) {
         infixOperatorPrecedence(operator)
       } else {
-        Precedence.Lowest
+        Lowest
       }
     }
   }
 }
-
-
