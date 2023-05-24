@@ -3,74 +3,8 @@ package net.cucumbersome.proboscis.parser
 import arrow.core.Either
 import net.cucumbersome.proboscis.Token
 import net.cucumbersome.proboscis.lexer.Lexer
-
-data class ParserError(val message: String, val position: TokenPosition) {
-  override fun toString(): String = "$message at line ${position.line}, column ${position.column}"
-}
-
-sealed interface ParseStatementResult<T : Node> {
-  val lexer: Lexer
-
-  fun <U : Node> flatMap(f: (statement: T, lexer: Lexer) -> ParseStatementResult<out U>): ParseStatementResult<out U> =
-    when (this) {
-      is SuccessfulParseStatementResult -> f(this.statement, this.lexer)
-      is FailedParseStatementResult -> this
-    }
-
-  fun appendErrors(errors: List<ParserError>): ParseStatementResult<out T> =
-    when (this) {
-      is SuccessfulParseStatementResult -> {
-        if (errors.isNotEmpty()) {
-          FailedParseStatementResult(errors, this.lexer)
-        } else {
-          this
-        }
-      }
-
-      is FailedParseStatementResult -> FailedParseStatementResult(this.errors + errors, this.lexer)
-    }
-
-  fun <U : Node> appendResult(result: ParseStatementResult<out U>): ParseStatementResult<out U> =
-    when (result) {
-      is SuccessfulParseStatementResult -> when (this) {
-        is SuccessfulParseStatementResult -> result
-        is FailedParseStatementResult -> result.appendErrors(this.errors)
-      }
-
-      is FailedParseStatementResult -> this.appendErrors(result.errors) as FailedParseStatementResult
-    }
-}
-
-data class SuccessfulParseStatementResult<T : Node>(val statement: T, override val lexer: Lexer) :
-  ParseStatementResult<T>
-
-data class FailedParseStatementResult(val errors: List<ParserError>, override val lexer: Lexer) :
-  ParseStatementResult<Nothing>
-
-fun <T : Node, U : Node, V : Node, R : Node> map3(
-  result1: ParseStatementResult<T>,
-  result2: ParseStatementResult<U>,
-  result3: ParseStatementResult<V>,
-  f: (T, U, V) -> R
-): ParseStatementResult<out R> =
-  if (result1 is SuccessfulParseStatementResult && result2 is SuccessfulParseStatementResult && result3 is SuccessfulParseStatementResult) {
-    SuccessfulParseStatementResult(f(result1.statement, result2.statement, result3.statement), result3.lexer)
-  } else {
-    result1.appendResult(result2).appendResult(result3) as FailedParseStatementResult
-  }
-
-fun <T : Node, U : Node, R : Node> map2(
-  result1: ParseStatementResult<T>,
-  result2: ParseStatementResult<U>,
-  f: (T, U) -> R
-): ParseStatementResult<out R> =
-  if (result1 is SuccessfulParseStatementResult && result2 is SuccessfulParseStatementResult) {
-    SuccessfulParseStatementResult(f(result1.statement, result2.statement), result2.lexer)
-  } else {
-    result1.appendResult(result2) as FailedParseStatementResult
-  }
-
-data class ProgramParseError(val errors: List<ParserError>)
+import net.cucumbersome.proboscis.parser.Precedence.Companion.infixOperatorPrecedence
+import net.cucumbersome.proboscis.parser.Precedence.Companion.nextPrecedence
 
 class Parser(val lexer: Lexer) {
   fun parseProgram(): Either<ProgramParseError, Program> {
@@ -208,6 +142,57 @@ class Parser(val lexer: Lexer) {
     return res.appendErrors(errors)
   }
 
+  private fun parseFunctionLiteral(lexer: Lexer): ParseStatementResult<out FunctionLiteral> {
+    val errors = mutableListOf<ParserError>()
+    val (leftParen, newLexer) = lexer.nextToken()
+    if (leftParen != Token.Companion.LeftParen) {
+      errors.add(ParserError("Expected (, got $leftParen", TokenPosition(lexer)))
+    }
+
+    val parameters = parseParameterList(newLexer)
+
+    val (leftBrace, newLexer2) = parameters.lexer.nextToken()
+    if (leftBrace != Token.Companion.LeftBrace) {
+      errors.add(ParserError("Expected {, got $leftBrace", TokenPosition(newLexer)))
+    }
+    return map2(parameters, parseBlockStatement(newLexer2)) { params, body ->
+      FunctionLiteral(
+        params,
+        body,
+        Token.Companion.Function,
+        TokenPosition(lexer)
+      )
+    }.appendErrors(errors)
+  }
+
+  private fun parseParameterList(lexer: Lexer): ParseStatementResult<out List<Identifier>> {
+    fun iterate(
+      acc: List<Identifier>,
+      currentLexer: Lexer
+    ): ParseStatementResult<out List<Identifier>> {
+      val (token, newLexer) = currentLexer.nextToken()
+      return when (token) {
+        Token.Companion.RightParen -> SuccessfulParseStatementResult(acc, newLexer)
+        Token.Companion.Eof -> FailedParseStatementResult(
+          listOf(ParserError("Expected ), got $token", TokenPosition(currentLexer))),
+          currentLexer
+        )
+
+        Token.Companion.Comma -> iterate(acc, newLexer)
+        is Token.Companion.Identifier ->
+          iterate(acc + Identifier(token.value, token, TokenPosition(newLexer)), newLexer)
+
+        else ->
+          FailedParseStatementResult(
+            listOf(ParserError("Expected identifier, got $token", TokenPosition(newLexer))),
+            currentLexer
+          )
+      }
+    }
+
+    return iterate(emptyList(), lexer)
+  }
+
   private fun parseReturnStatement(lexer: Lexer): ParseStatementResult<out ReturnStatement> {
     return parseExpressionStatement(lexer).flatMap { expression, newLexer ->
       SuccessfulParseStatementResult(
@@ -313,6 +298,7 @@ class Parser(val lexer: Lexer) {
 
       is Token.Companion.LeftParen -> parseGroupedExpression(newLexer)
       is Token.Companion.If -> parseIfExpression(newLexer)
+      is Token.Companion.Function -> parseFunctionLiteral(newLexer)
       else -> FailedParseStatementResult(
         listOf(ParserError("Unexpected prefix token $token", TokenPosition(lexer))),
         newLexer
@@ -366,30 +352,6 @@ class Parser(val lexer: Lexer) {
         InfixExpression(left, operator, expression, token, TokenPosition(newLexer)),
         newLexer2
       )
-    }
-  }
-
-  private fun nextPrecedence(lexer: Lexer): Precedence {
-    val operator = InfixOperator.fromToken(lexer.nextToken().first)
-    return if (operator != null) {
-      infixOperatorPrecedence(operator)
-    } else {
-      Precedence.Lowest
-    }
-  }
-
-  companion object {
-    enum class Precedence(val value: Int) {
-      Lowest(0), Equals(1), LessGreater(2), Sum(3), Product(4), Prefix(5), Call(6)
-    }
-
-    fun infixOperatorPrecedence(infixOperator: InfixOperator): Precedence {
-      return when (infixOperator) {
-        InfixOperator.PLUS, InfixOperator.MINUS -> Precedence.Sum
-        InfixOperator.ASTERISK, InfixOperator.SLASH -> Precedence.Product
-        InfixOperator.LESS_THAN, InfixOperator.GREATER_THAN -> Precedence.LessGreater
-        InfixOperator.EQUAL, InfixOperator.NOT_EQUAL -> Precedence.Equals
-      }
     }
   }
 }

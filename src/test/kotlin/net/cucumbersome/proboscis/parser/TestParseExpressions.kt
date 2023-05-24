@@ -318,4 +318,62 @@ class TestParseExpressions {
     assertEquals(expectedExpression.token, obtainedExpression.token)
     assertEquals(expectedExpression.tokenPosition, obtainedExpression.tokenPosition)
   }
+
+  @Test
+  fun testParseFunctionLiteral() {
+    val input = "fn(x, y) { x + y; }"
+    val expectedLiteral = FunctionLiteral(
+      listOf(
+        Identifier("x", Token.Companion.Identifier("x"), TokenPosition(position = 4, line = 1, column = 4)),
+        Identifier("y", Token.Companion.Identifier("y"), TokenPosition(position = 7, line = 1, column = 7))
+      ),
+      BlockStatement(
+        listOf(
+          InfixExpression(
+            Identifier("x", Token.Companion.Identifier("x"), TokenPosition(position = 12, line = 1, column = 12)),
+            InfixOperator.PLUS,
+            Identifier("y", Token.Companion.Identifier("y"), TokenPosition(position = 16, line = 1, column = 16)),
+            Token.Companion.Plus,
+            TokenPosition(position = 14, line = 1, column = 14)
+          )
+        ),
+        Token.Companion.LeftBrace,
+        TokenPosition(position = 10, line = 1, column = 10)
+      ),
+      Token.Companion.Function,
+      TokenPosition(position = 2, line = 1, column = 2)
+    )
+    val obtainedNodes = ParserHelper.getProgram(input).statements
+    assertEquals(1, obtainedNodes.size)
+    val obtainedLiteral = obtainedNodes[0]
+    if (obtainedLiteral !is FunctionLiteral) {
+      throw AssertionError("Statement is not a FunctionLiteral")
+    }
+    assertEquals(expectedLiteral.parameters, obtainedLiteral.parameters)
+    assertEquals(expectedLiteral.body, obtainedLiteral.body)
+    assertEquals(expectedLiteral.token, obtainedLiteral.token)
+    assertEquals(expectedLiteral.tokenPosition, obtainedLiteral.tokenPosition)
+  }
+
+  @Test
+  fun testFunctionArguments() {
+    val tests = listOf(
+      Pair("fn() {};", listOf<String>()),
+      Pair("fn(x) {};", listOf("x")),
+      Pair("fn(x, y, z) {};", listOf("x", "y", "z"))
+    )
+
+    tests.forEachIndexed { testIndex, (input, expected) ->
+      val program = ParserHelper.getProgram(input)
+      assertEquals(1, program.statements.size)
+      val statement = program.statements[0]
+      if (statement !is FunctionLiteral) {
+        throw AssertionError("Statement is not a FunctionLiteral ($testIndex)")
+      }
+      assertEquals(expected.size, statement.parameters.size)
+      expected.forEachIndexed { parameterIndex, identifier ->
+        assertEquals(identifier, statement.parameters[parameterIndex].value, "Parameter $parameterIndex ($testIndex)")
+      }
+    }
+  }
 }

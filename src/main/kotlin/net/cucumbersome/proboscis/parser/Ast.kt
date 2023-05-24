@@ -105,6 +105,15 @@ data class IfExpression(
   override fun present(): String = "if ${condition.present()} ${consequence.present()}${alternative?.present() ?: ""}"
 }
 
+data class FunctionLiteral(
+  val parameters: List<Identifier>,
+  val body: BlockStatement,
+  override val token: Token,
+  override val tokenPosition: TokenPosition
+) : Expression {
+  override fun present(): String = "fn(${parameters.joinToString(separator = ", ") { it.present() }}) ${body.present()}"
+}
+
 sealed interface Statement : Node
 
 class LetStatement(
