@@ -114,6 +114,15 @@ data class FunctionLiteral(
   override fun present(): String = "fn(${parameters.joinToString(separator = ", ") { it.present() }}) ${body.present()}"
 }
 
+data class CallExpression(
+  val function: Expression,
+  val arguments: List<Expression>,
+  override val token: Token,
+  override val tokenPosition: TokenPosition
+) : Expression {
+  override fun present(): String = "${function.present()}(${arguments.joinToString(separator = ", ") { it.present() }})"
+}
+
 sealed interface Statement : Node
 
 class LetStatement(

@@ -1,5 +1,6 @@
 package net.cucumbersome.proboscis.parser
 
+import net.cucumbersome.proboscis.Token
 import net.cucumbersome.proboscis.lexer.Lexer
 
 enum class Precedence(val value: Int) {
@@ -16,9 +17,12 @@ enum class Precedence(val value: Int) {
     }
 
     fun nextPrecedence(lexer: Lexer): Precedence {
-      val operator = InfixOperator.fromToken(lexer.nextToken().first)
+      val token = lexer.nextToken().first
+      val operator = InfixOperator.fromToken(token)
       return if (operator != null) {
         infixOperatorPrecedence(operator)
+      } else if (token == Token.Companion.LeftParen) {
+        Call
       } else {
         Lowest
       }

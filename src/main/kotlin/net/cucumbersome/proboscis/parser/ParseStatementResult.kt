@@ -63,4 +63,3 @@ fun <T, U, R> map2(
   } else {
     result1.appendResult(result2) as FailedParseStatementResult
   }
-

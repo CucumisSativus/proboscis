@@ -258,6 +258,9 @@ class Parser(val lexer: Lexer) {
         return SuccessfulParseStatementResult(leftExpression, iterationLexer)
       }
       val (operatorToken, _) = iterationLexer.nextToken()
+      if (left.statement is Identifier && operatorToken is Token.Companion.LeftParen) {
+        return parseCallExpression(left.statement, iterationLexer)
+      }
       if (InfixOperator.fromToken(operatorToken) == null) {
         return SuccessfulParseStatementResult(leftExpression, iterationLexer)
       }
@@ -270,6 +273,47 @@ class Parser(val lexer: Lexer) {
     }
 
     return iterate(left.lexer, left.statement)
+  }
+
+  private fun parseCallExpression(identifier: Identifier, lexer: Lexer): ParseStatementResult<out CallExpression> {
+    return parseArguments(lexer).flatMap { arguments, newLexer ->
+      SuccessfulParseStatementResult(
+        CallExpression(
+          identifier,
+          arguments,
+          identifier.token,
+          TokenPosition(lexer)
+        ),
+        newLexer
+      )
+    }
+  }
+
+  private fun parseArguments(lexer: Lexer): ParseStatementResult<out List<Expression>> {
+    val (leftParen, newLexer) = lexer.nextToken()
+    if (leftParen != Token.Companion.LeftParen) {
+      return FailedParseStatementResult(
+        listOf(ParserError("Expected (, got $leftParen", TokenPosition(lexer))),
+        newLexer
+      )
+    }
+
+    fun iterate(iterationLexer: Lexer, acc: List<Expression>): ParseStatementResult<out List<Expression>> {
+      val (token, newLexer2) = iterationLexer.nextToken()
+      return when (token) {
+        Token.Companion.RightParen -> SuccessfulParseStatementResult(acc, newLexer2)
+        is Token.Companion.Comma -> {
+          parseExpression(newLexer2, Precedence.Lowest).flatMap { expr, newLexer3 ->
+            iterate(newLexer3, acc + expr)
+          }
+        }
+
+        else -> parseExpression(iterationLexer, Precedence.Lowest).flatMap { expr, newLexer3 ->
+          iterate(newLexer3, acc + expr)
+        }
+      }
+    }
+    return iterate(newLexer, emptyList())
   }
 
   private fun getPrefix(lexer: Lexer): ParseStatementResult<out Expression> {

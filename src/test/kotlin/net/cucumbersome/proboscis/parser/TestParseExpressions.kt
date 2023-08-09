@@ -209,7 +209,10 @@ class TestParseExpressions {
       "(5 + 5) * 2",
       "2 / (5 + 5)",
       "-(5 + 5)",
-      "!(true == true)"
+      "!(true == true)",
+      "a + add(b * c) + d",
+      "add(a, b, 1, 2 * 3, 4 + 5, add(6, 7 * 8))",
+      "add(a + b + c * d / f + g)"
     )
 
     val expectedOutputs = listOf(
@@ -233,7 +236,10 @@ class TestParseExpressions {
       "((5 + 5) * 2)",
       "(2 / (5 + 5))",
       "(-(5 + 5))",
-      "(!(true == true))"
+      "(!(true == true))",
+      "((a + add((b * c))) + d)",
+      "add(a, b, 1, (2 * 3), (4 + 5), add(6, (7 * 8)))",
+      "add((((a + b) + ((c * d) / f)) + g))"
     )
 
     tests.forEachIndexed { index, test ->
@@ -375,5 +381,42 @@ class TestParseExpressions {
         assertEquals(identifier, statement.parameters[parameterIndex].value, "Parameter $parameterIndex ($testIndex)")
       }
     }
+  }
+
+  @Test
+  fun testFunctionCall() {
+    val input = "add(1, 2 * 3, 4 + 5);"
+    val expectedExpression = CallExpression(
+      Identifier("add", Token.Companion.Identifier("add"), TokenPosition(position = 3, line = 1, column = 3)),
+      listOf(
+        IntegerLiteral(1, Token.Companion.IntValue(1), TokenPosition(position = 5, line = 1, column = 5)),
+        InfixExpression(
+          IntegerLiteral(2, Token.Companion.IntValue(2), TokenPosition(position = 8, line = 1, column = 8)),
+          InfixOperator.ASTERISK,
+          IntegerLiteral(3, Token.Companion.IntValue(3), TokenPosition(position = 12, line = 1, column = 12)),
+          Token.Companion.Asterisk,
+          TokenPosition(position = 10, line = 1, column = 10)
+        ),
+        InfixExpression(
+          IntegerLiteral(4, Token.Companion.IntValue(4), TokenPosition(position = 15, line = 1, column = 15)),
+          InfixOperator.PLUS,
+          IntegerLiteral(5, Token.Companion.IntValue(5), TokenPosition(position = 19, line = 1, column = 19)),
+          Token.Companion.Plus,
+          TokenPosition(position = 17, line = 1, column = 17)
+        )
+      ),
+      Token.Companion.Identifier("add"),
+      TokenPosition(position = 3, line = 1, column = 3)
+    )
+    val nodes = ParserHelper.getProgram(input).statements
+    assertEquals(1, nodes.size)
+    val node = nodes[0]
+    if (node !is CallExpression) {
+      throw AssertionError("Statement is not a CallExpression")
+    }
+    assertEquals(expectedExpression.function, node.function)
+    assertEquals(expectedExpression.arguments, node.arguments)
+    assertEquals(expectedExpression.token, node.token)
+    assertEquals(expectedExpression.tokenPosition, node.tokenPosition)
   }
 }
